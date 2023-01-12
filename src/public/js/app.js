@@ -1,5 +1,51 @@
 // 사용자에게 보여지는 FE 에 사용되는 js 파일
 
+// SocketIO 를 FE 와 연결
+// io() 는 자동적으로 BE 의 socket.io 와 연결해주는 함수
+// 알아서 socket.io 를 실행하고 있는 서버를 찾음
+const socket = io();
+// welcome 이란 id 를 가지는 div 에서
+const welcome = document.getElementById("welcome");
+// form 을 가져옴
+const form = welcome.querySelector("form");
+// room 이란 id 를 가지는 div 에서
+const roomo = document.getElementById("room");
+// room 을 숨김
+room.hidden = true;
+
+let roomName;
+
+function showRoom() {
+  welcome.hidden = true;
+  room.hidden = false;
+
+  const h3 = room.querySelector("h3");
+  h3.innerText = `Room ${roomName}`;
+}
+
+// FE 에서 이 코드가 실행이 되는 데,
+// 이것은 BE 에서 done() 으로 받아서 실행시킨 것 !!
+function backendDone(msg) {
+  console.log(`The BE says : `, msg);
+}
+
+function handleRoomSubmit(event) {
+  event.preventDefault();
+
+  const input = form.querySelector("input");
+  // 1. 특정한 event 를 emit 가능(어떤 event 든 간에)
+  // 2. object 전송 
+  // 3. 이름없는 함수 전송
+  socket.emit("enter_room", input.value, showRoom);
+  roomName = input.value;
+  input.value = "";
+}
+
+form.addEventListener("submit", handleRoomSubmit);
+
+
+/*
+
 const msgList = document.querySelector("ul");
 const msgForm = document.querySelector("#message");
 const nicknameForm = document.querySelector("#nickname");
@@ -75,3 +121,5 @@ function handleNicknameSubmit(event) {
 
 msgForm.addEventListener("submit", handleSubmit);
 nicknameForm.addEventListener("submit", handleNicknameSubmit);
+
+*/

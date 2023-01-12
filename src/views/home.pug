@@ -11,13 +11,31 @@ html(lang="ko")
         header
             h1 Boom
         main
-            h2
-            form#nickname
-                input(type="text", placeholder="Choose your nickname..", required)
-                button Save
-            ul
-            form#message
-                input(type="text", placeholder="Write a message..", required)
-                button Send
-        button Call
+            div#welcome
+                form
+                    input(type="text", placeholder="room name", required)
+                    button Enter Room
+
+            div#room
+                h3
+                ul
+                form
+                    input(type="text", placeholder="message", required)
+                    button Send
+
+
+
+
+
+
+        //-     h2
+        //-     form#nickname
+        //-         input(type="text", placeholder="Choose your nickname..", required)
+        //-         button Save
+        //-     ul
+        //-     form#message
+        //-         input(type="text", placeholder="Write a message..", required)
+        //-         button Send
+        //- button Call
+        script(src="/socket.io/socket.io.js")
         script(src="/public/js/app.js")

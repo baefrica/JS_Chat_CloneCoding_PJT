@@ -1,9 +1,14 @@
 // http 를 import
 import http from "http";
-// ws 를 import
-import WebSocket from "ws";
+// socket.io 를 import
+import SocketIO from "socket.io";
 // express 를 import
 import express from "express";
+
+/*
+// ws 를 import
+import WebSocket from "ws";
+*/
 
 // express 앱 구성
 const app = express();
@@ -24,13 +29,43 @@ app.get("/", (req, res) => res.render("home"));
 // 유저가 어떤 url 로 이동하던지 home 으로 가도록 함
 app.get("/*", (req, res) => res.redirect("/"));
 
-const handleListen = () => console.log(`Listening on http://localhost:3000`);
-
 // express.js 를 이용하여 http 서버 생성
-const server = http.createServer(app);
+const httpServer = http.createServer(app);
+// websocket 서버 생성
+const wsServer = SocketIO(httpServer);
+
+/*
 // http 서버 위에 WebSocket 서버 생성
 const wss = new WebSocket.Server({ server });
+*/
 
+// BE 에서 connection 받을 준비
+wsServer.on("connection", (socket) => {
+  socket.onAny((event) => {
+    console.log(`Socket Event : ${event}`);
+  });
+
+  // 전송받은 object 를 그대로 msg 로 받음
+  // 전송받은 함수 () 를 done 으로 받음
+  socket.on("enter_room", (roomName, done) => {
+    console.log(roomName + " 입장");
+    // socket 이 있는 rooms 를 보여줌
+    console.log(socket.rooms);
+
+    // SocketIO 는 기본적으로 room 을 제공
+    // 방으로 입장시키는 SocketIO 의 기능
+    socket.join(roomName);
+    done();
+    console.log(socket.rooms);
+
+    // 서버는 10초 후에 done() function 실행
+    setTimeout(() => {
+      done("Hello from the BE");
+    }, 10000);
+  });
+});
+
+/*
 // 브라우저가 꺼졌을 때
 function onSocketClose() {
   console.log("Disconnected from Browser ❌");
@@ -69,5 +104,7 @@ wss.on("connection", (socket) => {
     }
   });
 });
+*/
 
-server.listen(3000, handleListen);
+const handleListen = () => console.log(`Listening on http://localhost:3000`);
+httpServer.listen(3000, handleListen);
