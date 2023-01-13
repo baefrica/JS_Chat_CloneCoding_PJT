@@ -1,7 +1,9 @@
 // http 를 import
 import http from "http";
 // socket.io 를 import
-import SocketIO from "socket.io";
+import { Server } from "socket.io";
+// Socket IO Admin UI import
+import { instrument } from "@socket.io/admin-ui";
 // express 를 import
 import express from "express";
 
@@ -32,22 +34,53 @@ app.get("/*", (req, res) => res.redirect("/"));
 // express.js 를 이용하여 http 서버 생성
 const httpServer = http.createServer(app);
 // websocket 서버 생성
-const wsServer = SocketIO(httpServer);
+const wsServer = new Server(httpServer, {
+  cors: {
+    origin: ["https://admin.socket.io"],
+    credentials: true,
+  },
+});
+
+instrument(wsServer, {
+  auth: false,
+});
 
 /*
 // http 서버 위에 WebSocket 서버 생성
 const wss = new WebSocket.Server({ server });
 */
 
+function publicRooms() {
+  const sids = wsServer.sockets.adapter.sids;
+  const rooms = wsServer.sockets.adapter.rooms;
+
+  const publicRooms = [];
+  rooms.forEach((_, key) => {
+    if (sids.get(key) === undefined) {
+      publicRooms.push(key);
+    }
+  });
+
+  return publicRooms;
+}
+
+function countRoom(roomName) {
+  return wsServer.sockets.adapter.rooms.get(roomName)?.size;
+}
+
 // BE 에서 connection 받을 준비
 wsServer.on("connection", (socket) => {
+  // 처음 connection 되었을 때
+  socket["nickname"] = "Anonymous";
+
   socket.onAny((event) => {
     console.log(`Socket Event : ${event}`);
   });
 
   // 전송받은 object 를 그대로 msg 로 받음
   // 전송받은 함수 () 를 done 으로 받음
-  socket.on("enter_room", (roomName, done) => {
+  socket.on("enter_room", (nickname, roomName, showRoom) => {
+    socket["nickname"] = nickname;
     console.log(roomName + " 입장");
     // socket 이 있는 rooms 를 보여줌
     console.log(socket.rooms);
@@ -55,13 +88,37 @@ wsServer.on("connection", (socket) => {
     // SocketIO 는 기본적으로 room 을 제공
     // 방으로 입장시키는 SocketIO 의 기능
     socket.join(roomName);
-    done();
+    showRoom();
+    // 중복되는 요소가 없는 set
     console.log(socket.rooms);
 
-    // 서버는 10초 후에 done() function 실행
-    setTimeout(() => {
-      done("Hello from the BE");
-    }, 10000);
+    // "welcome" event 를 roomName 에 있는 모든 사람들에게 emit
+    socket.to(roomName).emit("welcome", socket.nickname, countRoom(roomName));
+
+    // 연결된 모든 socket 에게 메시지를 보냄
+    wsServer.sockets.emit("room_change", publicRooms());
+  });
+
+  // socket 이 방을 떠나기 바로 직전에 발생
+  socket.on("disconnecting", () => {
+    socket.rooms.forEach((room) =>
+      socket.to(room).emit("bye", socket.nickname, countRoom(room) - 1)
+    );
+  });
+
+  socket.on("disconnect", () => {
+    // 연결된 모든 socket 에게 메시지를 보냄
+    wsServer.sockets.emit("room_change", publicRooms());
+  });
+
+  socket.on("new_message", (msg, room, done) => {
+    socket.to(room).emit("sendMsg", `${socket.nickname} : ${msg}`);
+    // 이 done() 은 BE 에서는 실행하지 않음. FE 에서만.
+    done();
+  });
+
+  socket.on("nickname", (nickname) => {
+    socket["nickname"] = nickname;
   });
 });
 

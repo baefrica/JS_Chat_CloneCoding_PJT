@@ -6,43 +6,111 @@
 const socket = io();
 // welcome 이란 id 를 가지는 div 에서
 const welcome = document.getElementById("welcome");
-// form 을 가져옴
-const form = welcome.querySelector("form");
+// roomNameForm 을 가져옴
+const roomNameForm = welcome.querySelector("#roomName");
+// nicknameForm 을 가져옴
+const nicknameForm = welcome.querySelector("#nickname");
 // room 이란 id 를 가지는 div 에서
-const roomo = document.getElementById("room");
+const room = document.getElementById("room");
 // room 을 숨김
 room.hidden = true;
 
 let roomName;
 
+const msgForm = room.querySelector("#msg");
+msgForm.addEventListener("submit", handleMsgSubmit);
+nicknameForm.addEventListener("submit", handleNameSubmit);
+
+function addMessage(msg) {
+  const ul = room.querySelector("ul");
+  const li = document.createElement("li");
+
+  li.innerText = msg;
+  ul.appendChild(li);
+}
+
+function handleMsgSubmit(event) {
+  event.preventDefault();
+
+  const input = room.querySelector("#msg input");
+  const value = input.value;
+
+  // BE 로 "new_message" event 를 보냄
+  socket.emit("new_message", input.value, roomName, () => {
+    addMessage(`You : ${value}`);
+  });
+
+  input.value = "";
+}
+
+function handleNameSubmit(event) {
+  event.preventDefault();
+
+  const input = welcome.querySelector("#nickname input");
+
+  // BE 로 "nickname" event 를 보냄
+  socket.emit("nickname", input.value);
+}
+
 function showRoom() {
-  welcome.hidden = true;
+  nicknameForm.hidden = true;
   room.hidden = false;
 
   const h3 = room.querySelector("h3");
   h3.innerText = `Room ${roomName}`;
 }
 
-// FE 에서 이 코드가 실행이 되는 데,
-// 이것은 BE 에서 done() 으로 받아서 실행시킨 것 !!
-function backendDone(msg) {
-  console.log(`The BE says : `, msg);
-}
-
 function handleRoomSubmit(event) {
   event.preventDefault();
 
-  const input = form.querySelector("input");
+  const nicknameInput = nicknameForm.querySelector("input");
+  const roomNameInput = roomNameForm.querySelector("input");
+
   // 1. 특정한 event 를 emit 가능(어떤 event 든 간에)
-  // 2. object 전송 
+  // 2. object 전송
   // 3. 이름없는 함수 전송
-  socket.emit("enter_room", input.value, showRoom);
-  roomName = input.value;
-  input.value = "";
+  socket.emit("enter_room", nicknameInput.value, roomNameInput.value, showRoom);
+  console.log(nicknameInput.value);
+  roomName = roomNameInput.value;
+  roomNameInput.value = "";
 }
 
-form.addEventListener("submit", handleRoomSubmit);
+roomNameForm.addEventListener("submit", handleRoomSubmit);
 
+// "welcome" event 를 받으면 addMessage 함수 실행
+socket.on("welcome", (user, newCnt) => {
+  const h3 = room.querySelector("h3");
+  h3.innerText = `Room ${roomName} (${newCnt})`;
+  addMessage(`${user} joined ✔`);
+});
+
+// "disconnecting" event 를 받으면 addMessage 함수 실행
+socket.on("bye", (user, newCnt) => {
+  const h3 = room.querySelector("h3");
+  h3.innerText = `Room ${roomName} (${newCnt})`;
+  addMessage(`${user} left ❌`);
+});
+
+socket.on("sendMsg", addMessage);
+
+// rooms 로 방 배열을 받음
+socket.on("room_change", (rooms) => {
+  const roomList = welcome.querySelector("ul");
+  // 항상 방 목록을 비워줌
+  roomList.innerHTML = "";
+  // rooms 가 없는 상태로 오면 = 어플리케이션에 방이 하나도 없을 때
+  // 모든 것을 비워줌
+  if (rooms.length === 0) {
+    return;
+  }
+
+  rooms.forEach((room) => {
+    const li = document.createElement("li");
+
+    li.innerText = room;
+    roomList.append(li);
+  });
+});
 
 /*
 
